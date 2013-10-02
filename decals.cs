@@ -1,7 +1,7 @@
 $Pref::Server::DecalLimit = 100;
 $Pref::Server::DecalTimeout = 20000;
 
-function spawnDecal(%dataBlock, %position, %vector, %size) {
+function spawnDecal(%dataBlock, %position, %vector, %size, %angle) {
 	if (!isObject(MissionCleanup)) {
 		error("ERROR: MissionCleanup not created.");
 		return -1;
@@ -42,8 +42,10 @@ function spawnDecal(%dataBlock, %position, %vector, %size) {
 		return -1;
 	}
 
+	// TODO: Rotate decal around normal by %angle
 	%obj.setTransform(%position SPC vectorToAxis(%vector));
-	%obj.setScale(vectorSub(%size SPC %size SPC %size, vectorScale(%vector, %size)));
+	//%obj.setScale(vectorSub(%size SPC %size SPC %size, vectorScale(%vector, %size)));
+	%obj.setScale(%size SPC %size SPC %size);
 
 	if (%dataBlock.doColorShift) {
 		%obj.setNodeColor("ALL", %dataBlock.colorShiftColor);
@@ -53,6 +55,8 @@ function spawnDecal(%dataBlock, %position, %vector, %size) {
 		%obj.schedule($Pref::Server::DecalTimeout - 1000, fadeOut);
 		%obj.schedule($Pref::Server::DecalTimeout, delete);
 	}
+	
+	return %obj;
 }
 
 function spawnDecalFromRayCast(%dataBlock, %rayCast, %size) {
