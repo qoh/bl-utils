@@ -57,6 +57,7 @@ function DocumentStorage::purge(%this) {
 	}
 
 	%this.size = 0;
+	return %this;
 }
 
 function DocumentStorage::import(%this, %file) {
@@ -225,6 +226,8 @@ function DocumentStorage::deleteCollection(%this, %name) {
 
 		%this.setDirty();
 	}
+
+	return %this;
 }
 
 function DocumentStorage::setDirty(%this) {
@@ -233,6 +236,8 @@ function DocumentStorage::setDirty(%this) {
 	if (%this.file !$= "" && %this.dirtyExportDelay >= 0 && !isEventPending(%this.dirtyExportSchedule)) {
 		%this.dirtyExportSchedule = %this.schedule(%this.dirtyExportDelay, export);
 	}
+
+	return %this;
 }
 
 function DocumentStorage_Collection::onAdd(%this) {
@@ -300,6 +305,8 @@ function DocumentStorage_Collection::deleteDocument(%this, %name) {
 
 		%this.parent.setDirty();
 	}
+
+	reurn %this;
 }
 
 function DocumentStorage_Document::onAdd(%this) {
@@ -316,12 +323,17 @@ function DocumentStorage_Document::set(%this, %name, %value) {
 
 	%this.value[%name] = %value;
 	%this.parent.parent.setDirty();
+
+	return %this;
 }
 
 function DocumentStorage_Document::setDefault(%this, %name, %value) {
 	if (!%this.isKey[%name]) {
 		%this.set(%name, %value);
+		return %value;
 	}
+
+	return %this.get(%name);
 }
 
 function DocumentStorage_Document::get(%this, %name, %default) {
@@ -345,6 +357,8 @@ function DocumentStorage_Document::clear(%this, %force) {
 	if (!%force && %this.parent.isDocument("$default")) {
 		%this.parent.document("$default").copyTo(%this);
 	}
+
+	return %this;
 }
 
 function DocumentStorage_Document::deleteKey(%this, %name, %force) {
@@ -355,11 +369,11 @@ function DocumentStorage_Document::deleteKey(%this, %name, %force) {
 			%this.set(%name, %document.get(%name));
 		}
 
-		return;
+		return %this;
 	}
 
 	if (!%this.isKey[%name]) {
-		return;
+		return %this;
 	}
 
 	%this.value[%name] = "";
@@ -380,6 +394,7 @@ function DocumentStorage_Document::deleteKey(%this, %name, %force) {
 	}
 
 	%this.parent.parent.setDirty();
+	return %this;
 }
 
 function DocumentStorage_Document::copyTo(%this, %other, %onlyDefault) {
@@ -388,4 +403,6 @@ function DocumentStorage_Document::copyTo(%this, %other, %onlyDefault) {
 			%other.set(%this.name[%i], %this.value[%this.name[%i]]);
 		}
 	}
+
+	return %this;
 }
