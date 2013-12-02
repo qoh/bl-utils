@@ -306,7 +306,7 @@ function DocumentStorage_Collection::deleteDocument(%this, %name) {
 		%this.parent.setDirty();
 	}
 
-	reurn %this;
+	return %this;
 }
 
 function DocumentStorage_Document::onAdd(%this) {
