@@ -2,61 +2,61 @@ $COMPARE::VALUES = 0;
 $COMPARE::SCORES = 1;
 $COMPARE::EXTERN = 2;
 
-// HeapQueue HeapQueue([string init], [number compareMode], [function compareArg])
-//   desc: Returns a new instance of a HeapQueue.
+// HeapQueue HeapQueue([number comparator], [function externFunc])
+//  Heaps are binary trees for which every parent node has a value less than or equal to any of its children.
+//  This implementation uses arrays for which `heap[k] <= heap[2*k+1]` and `heap[k] <= heap[2*k+2]` for all k, counting elements from zero.
+//  For the sake of comparison, non-existing elements are considered to be infinite.
+//  The interesting property of a heap is that its smallest element is always the root, `heap[0]`.
 //
-//   arg init:
-//     An initial \n-delimited set of items to ::push onto the queue.
-//     Individual items are in the format of "item value\titem score".
+//  The API below differs from textbook heap algorithms in two aspects:
 //
-//   arg compareMode: One of $COMPARE::*, determining how to compare items. $COMPARE::SCORES by default.
-//   arg compareArg: If compareMode is $COMPARE::EXTERN, the function to call for comparing items.
+//   1. We use zero-based indexing. This makes the relationship between the index for a node and the indexes for its children slightly less obvious.
+//   2. Our pop method returns the smallest item (by default), not the largest (called a “min heap” in textbooks; a “max heap” is more common in texts because of its suitability for in-place sorting).
+//
+//  Basic example:
+//
+//      ==>$heap = HeapQueue();
+//      ==>$heap.push("foo", 5);
+//      ==>$heap.push("bar", 3);
+//      ==>$heap.push("baz", 10);
+//      ==>for (%i = 0; %i < 3; %i++) echo($heap.pop());
+//      bar
+//      foo
+//      baz
+//
+//  @arg comparator One of `$COMPARE::*`, determining how to compare items. `$COMPARE::SCORES` by default.
+//  @arg externFunc If *comparator* is `$COMPARE::EXTERN`, the function to call for comparing items.
 
-function HeapQueue(%init, %compareMode, %compareArg) {
+function HeapQueue(%comparator, %externFunc) {
 	return new ScriptObject() {
 		class = HeapQueue;
-		init = %init;
 
-		compareMode = %compareMode;
-		compareFunc = %compareFunc;
+		comparator = %comparator;
+		externFunc = %externFunc;
 	};
 }
 
-// HeapQueue::onAdd
-//   private
+// HeapQueue::onAdd()
+//  @private
 
 function HeapQueue::onAdd(%this) {
 	%this.size = 0;
 
-	if (%this.compareMode $= "") {
-		%this.compareMode = $COMPARE::SCORES;
+	if (%this.comparator $= "") {
+		%this.comparator = $COMPARE::SCORES;
 	}
 
-	if (%this.compareMode == $COMPARE::EXTERN && !isFunction(%this.compareArg)) {
+	if (%this.comparator == $COMPARE::EXTERN && !isFunction(%this.externFunc)) {
 		error("ERROR: Invalid function given when using EXTERN heap comparisons.");
 
 		%this.delete();
 		return;
 	}
-
-	if (%this.init !$= "") {
-		%count = getLineCount(%this.init);
-
-		for (%i = 0; %i < %count; %i++) {
-			%line = getLine(%this.init, %i);
-			%this.push(getField(%line, 0), getField(%line, 1));
-		}
-
-		%this.init = "";
-	}
 }
 
-// void HeapQueue::push(item, [number score])
-//   desc: Pushes a new item onto the queue, moving it down to the proper position.
-//   see: HeapQueue::pop
-//
-//   arg item: The value of the item to add (any value).
-//   arg score: A numeric value to sort the item by if compareMode is $COMPARE::SCORES.
+// HeapQueue::push(item, [number score])
+//  Pushes the value *item* onto the heap, maintaining the heap invariant.
+//  If the comparator is `$COMPARE::SCORES`, *score* will be used for prioritizing.
 
 function HeapQueue::push(%this, %item, %score) {
 	%this.contains[%item] = 1;
@@ -68,10 +68,9 @@ function HeapQueue::push(%this, %item, %score) {
 	%this._demote(0, %this.size - 1);
 }
 
-// * HeapQueue::pop()
-//   desc: Pops (removes) the best item from the queue and finds a successor for the queue.
-//   return: The value of the best item in the queue.
-//   see: HeapQueue::pop
+// value HeapQueue::pop()
+//  Pop and return the best item from the heap, maintaining the heap invariant.
+//  If the heap is empty, an empty string is returned.
 
 function HeapQueue::pop(%this) {
 	if (!%this.size) {
@@ -93,8 +92,8 @@ function HeapQueue::pop(%this) {
 	return %item;
 }
 
-// HeapQueue::_demote
-//   private
+// void HeapQueue::_demote(int start, int index)
+//  @private
 
 function HeapQueue::_demote(%this, %start, %index) {
 	%item = %this.item[%index];
@@ -115,8 +114,8 @@ function HeapQueue::_demote(%this, %start, %index) {
 	%this.item[%index] = %item;
 }
 
-// HeapQueue::_promote
-//   
+// void HeapQueue::_promote(int index)
+//  @private
 
 function HeapQueue::_promote(%this, %index) {
 	%start = %index;
@@ -141,25 +140,52 @@ function HeapQueue::_promote(%this, %index) {
 	%this._demote(%start, %index);
 }
 
-// HeapQueue::compare(a, b)
-//   desc: Used internally to determine which item to prioritize, using the configured comparator.
-//   return: 1 if a is better than b, 0 otherwise.
-//
-//   arg a: The left child item to compare.
-//   arg b: The right child item to compare.
+// bool HeapQueue::compare(a, b)
+//  Used internally to determine which item to prioritize, using the configured comparator.
+//  Returns 1 if a is better than b, 0 otherwise.
 
 function HeapQueue::compare(%this, %a, %b) {
-	if (%this.compareMode == $COMPARE::VALUES) {
+	if (%this.comparator == $COMPARE::VALUES) {
 		return %a < %b;
 	}
 
-	if (%this.compareMode == $COMPARE::SCORES) {
+	if (%this.comparator == $COMPARE::SCORES) {
 		return %this.score[%a] < %this.score[%b];
 	}
 
-	if (%this.compareMode == $COMPARE::EXTERN) {
-		return call(%this.compareFunc, %this, %a, %b);
+	if (%this.comparator == $COMPARE::EXTERN) {
+		return call(%this.externFunc, %this, %a, %b);
 	}
 
 	return 0;
+}
+
+// HeapQueue heapify(data, [comparator], [externFunc])
+//  Constructs a HeapQueue from an initial data set, passing along the other normal arguments.
+//
+//  *data* is a newline-separated list of items to push onto the new heap.
+//  When using the `$COMPARE::SCORES` comparator, the score of each item can be specified after a tab character.
+//
+//  This can be used to implement a simple heapsort.
+//
+//      function heapsort(%values) {
+//          %heap = heapify(%values, $COMPARE::VALUES);
+//          %size = %heap.size;
+//          for (%i = 0; %i < %size; %i++) {
+//              %values = setRecord(%values, %i, %heap.pop());
+//          }
+//          %heap.delete();
+//          return %values;
+//      }
+
+function heapify(%data, %comparator, %externFunc) {
+	%heap = HeapQueue(%comparator, %externFunc);
+	%count = getLineCount(%data);
+
+	for (%i = 0; %i < %count; %i++) {
+		%line = getLine(%data, %i);
+		%heap.push(getField(%line, 0), getField(%line, 1));
+	}
+
+	return %heap;
 }
