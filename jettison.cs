@@ -318,7 +318,9 @@ function __scanJSONNumber(%blob, %index) {
 				break;
 			}
 
-			%first = 1;
+			if (!%first || !%radix) {
+				%first++;
+			}
 		}
 	}
 
@@ -326,7 +328,7 @@ function __scanJSONNumber(%blob, %index) {
 		return "";
 	}
 
-	if (!%allowZeroFirst && %i - %index > 1 && %start $= "0") {
+	if (!%allowZeroFirst && (%radix ? %first : %i - %index) > 1 && %start $= "0") {
 		return "";
 	}
 
