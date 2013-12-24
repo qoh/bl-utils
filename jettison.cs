@@ -367,10 +367,7 @@ function __scanJSONHash(%blob, %index) {
 			return "";
 		}
 
-		if(sanitizeIdentifier(%key))
-		{
-			%obj.set(%key, restWords(%scan));
-		}
+		%obj.set(%key, restWords(%scan));
 		%index = firstWord(%scan);
 
 		%first = 1;
