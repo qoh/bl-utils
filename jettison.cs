@@ -81,6 +81,44 @@ function isJSONObject(%data) {
 	return 0;
 }
 
+// string dumpJSON(* data)
+//   desc: Recursively builds a JSON string of the given object.
+//   return: JSON representation of the object.
+
+function dumpJSON(%data)
+{
+	%type = getJSONType(%data);
+	switch$(%type)
+	{
+	case "hash":
+		%str = "{";
+		for(%i = 0; %i < %data.__length; %i++)
+		{
+			%key = %data.__key[%i];
+			%val = %data.__value[%key];
+			%str = %str @ "\"" @ %key @ "\":" @ dumpJSON(%val);
+			if(%i < %data.__length - 1)
+				%str = %str @ ",";
+		}
+		return %str @ "}";
+	case "array":
+		%str = "[";
+		for(%i = 0; %i < %data.length; %i++)
+		{
+			%val = %data.item[%i];
+			%str = %str @ dumpJSON(%val);
+			if(%i < %data.length - 1)
+				%str = %str @ ",";
+		}
+		return %str @ "]";
+	case "number":
+		return %data;
+	case "string":
+		return "\"" @ %data @ "\"";
+	}
+	return "null";
+}
+
 // string describeJSON(* data[, int depth])
 //   desc: Returns a string representing the given data, using JSONObject::describe for JSON objects.
 //   return: A potentially multi-line string with space indention, suitable for echo(...).
@@ -91,6 +129,64 @@ function describeJSON(%data, %depth) {
 	}
 
 	return %data.describe(%depth);
+}
+
+// bool saveJSON(* data, string filename[, FileObject fo])
+//   desc: Saves the given JSON object into a file.
+//   return: Boolean indicating whether the file was successfully written.
+//   notes: If saving and loading a lot of files, you may pass your own FileObject as the final argument rather than recreating a lot of them.
+
+function saveJSON(%data, %filename, %fo)
+{
+	%success = 0;
+	%createdFO = 0;
+	if(!isObject(%fo) || %fo.getClassName() !$= "FileObject")
+	{
+		%fo = new FileObject();
+		%createdFO = 1;
+	}
+
+	%str = dumpJSON(%data);
+	if(%str !$= "null" && %str !$= "" && %fo.openForWrite(%filename))
+	{
+		%fo.writeLine(%str);
+		%fo.close();
+		%success = 1;
+	}
+	if(%createdFO)
+		%fo.delete();
+	return %success;
+}
+
+// * loadJSON(string filename[, string defaultStruct[, FileObject fo]])
+//   desc: Loads a JSON object from a given file.
+//   return: JSON data structure from the given file, or from the JSON provided as defaultStruct.
+//   notes: If saving and loading a lot of files, you may pass your own FileObject as the final argument rather than recreating a lot of them. If using your own FileObject with no defaultStruct, please provide "" as defaultStruct.
+
+function loadJSON(%filename, %default, %fo)
+{
+	%createdFO = 0;
+	if(!isObject(%fo) || %fo.getClassName() !$= "FileObject")
+	{
+		%fo = new FileObject();
+		%createdFO = 1;
+	}
+
+	if(isFile(%filename) && %fo.openForRead(%filename))
+	{
+		%str = "";
+		while(!%fo.isEOF())
+		{
+			%str = %str @ %fo.readLine();
+		}
+		%fo.close();
+		%data = parseJSON(%str);
+	}
+	if(%data $= "")
+		%data = parseJSON(%default);
+	if(%createdFO)
+		%fo.delete();
+	return %data;
 }
 
 // Private functions
@@ -271,7 +367,10 @@ function __scanJSONHash(%blob, %index) {
 			return "";
 		}
 
-		%obj.set(%key, restWords(%scan));
+		if(sanitizeIdentifier(%key))
+		{
+			%obj.set(%key, restWords(%scan));
+		}
 		%index = firstWord(%scan);
 
 		%first = 1;
@@ -630,7 +729,7 @@ function JSONHash::remove(%this, %key, %delete) {
 	%this.__value[%key] = "";
 
 	if (%this.__isKeyNameSane[%key]) {
-		eval("%this." @ %key @ "=\"\"";);
+		eval("%this." @ %key @ "=\"\";");
 	}
 
 	%this.__isKeyNameSane[%key] = "";
@@ -673,7 +772,7 @@ function JSONArray::clear(%this, %delete) {
 		%this.__value[%key] = "";
 
 		if (%this.__isKeyNameSane[%key]) {
-			eval("%this." @ %key @ "=\"\"";);
+			eval("%this." @ %key @ "=\"\";");
 		}
 
 		%this.__isKeyNameSane[%key] = "";
