@@ -13,10 +13,7 @@ function isWithinView(%a, %b, %vector, %angle)
 		%angle = 90;
 	}
 
-	%product = vectorDot(%vector,
-		vectorNormalize(vectorSub(%b, %a))
-	);
-
+	%product = vectorDot(%vector, vectorNormalize(vectorSub(%b, %a)));
 	return %product >= 1 - (%angle / 360) * 2;
 }
 
