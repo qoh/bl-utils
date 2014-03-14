@@ -100,3 +100,43 @@ function grad(%hash, %x, %y, %z)
   %v = %h < 4 ? %y : (%h == 12 || %h == 14 ? %x : %z);
   return ((%h & 1) == 0 ? %u : -%u) + ((%h & 2) == 0 ? %v : -%v);
 }
+
+function OctavePerlinNoise(%seed, %octaves, %persistence)
+{
+  if (%seed $= "")
+    %seed = getRandom(0, 0xFFFFF);
+
+  if (%octaves $= "")
+    %octaves = 4;
+
+  if (%persistence $= "")
+    %persistence = 0.5;
+
+  %obj = new ScriptObject()
+  {
+    class = OctavePerlinNoise;
+    superClass = PerlinNoise;
+
+    octaves = %octaves;
+    persistence = %persistence;
+  };
+
+  %obj.setSeed(%seed);
+  return %obj;
+}
+
+function OctavePerlinNoise::noise3D(%this, %x, %y, %z)
+{
+  %t = 0;
+  %ampl = 1;
+  %freq = 1;
+
+  for (%i = 0; %i < %this.octaves; %i++)
+  {
+    %t += Parent::noise3D(%x * %freq, %y * %freq, %z * %freq) * %ampl;
+    %ampl *= %this.persistence;
+    %freq *= 2;
+  }
+
+  return %t;
+}
