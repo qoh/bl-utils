@@ -24,7 +24,7 @@ function PerlinNoise::setSeed(%this, %seed)
 
   for (%i = 255; %i; %i--)
   {
-    %j = getRandom(0, %i);
+    %j = getRandom(%i);
     %t = %this.p[%i];
 
     %this.p[%i] = %this.p[%j];
